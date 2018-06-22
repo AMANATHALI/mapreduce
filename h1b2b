@@ -1,0 +1,137 @@
+import java.io.*;
+import java.util.TreeMap;
+
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Partitioner;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.fs.*;
+import org.apache.hadoop.mapreduce.lib.input.*;
+import org.apache.hadoop.mapreduce.lib.output.*;
+
+public class h1b2b
+{
+	
+	public static class MapClass extends Mapper<LongWritable,Text,Text,LongWritable>
+	   {
+	      public void map(LongWritable key, Text value, Context context)
+	      {	    	
+	    	 LongWritable one = new LongWritable(1);
+	    	 Text mykey = new Text();
+	    	  
+	         try
+	         {
+	            	String record[] = value.toString().split("\t");
+	            	  	            	
+	            	
+	            	if(record[1].contains("CERTIFIED") && record[1] != null)
+	            	{
+	            		
+	            		String year = record[7];
+		            	String worksite = record[8];
+		            	String fkey = year + "," + worksite;
+		            	mykey.set(fkey);                    		
+	            		
+	            		context.write(mykey,one);
+	            		
+	            	}         		
+	                   	
+	            			
+	         
+	         }
+	         catch(Exception e)
+	         {
+	            System.out.println(e.getMessage());
+	         }
+	         
+	      }
+	   }
+	
+	
+	  public static class ReduceClass extends Reducer<Text,LongWritable,NullWritable,Text>
+	   {
+		  
+		    private TreeMap<LongWritable, Text> Top5locations = new TreeMap<LongWritable, Text>();
+		  
+		  	public void reduce(Text key, Iterable<LongWritable> values,Context context) throws IOException, InterruptedException
+		  	{
+		      	 long sum = 0;
+		      		      	
+		      	 for (LongWritable val : values)
+		         {       
+		      				      			
+		      		 sum = sum + val.get();
+		      		 
+		      		   	
+		         }
+		       
+		      	Top5locations.put(new LongWritable(sum),new Text(key+","+sum));
+		      	
+				if (Top5locations.size()>5)
+					
+					Top5locations.remove(Top5locations.firstKey());
+			}
+			protected void cleanup(Context context)throws IOException, InterruptedException
+			{
+				for (Text t : Top5locations.descendingMap().values()) 
+					
+					context.write(NullWritable.get(), t);
+			} 
+			
+	   }
+	  
+	  public static class h1b2bpartitioner extends Partitioner < Text, LongWritable > 
+		{
+		    
+		    public int getPartition(Text key, LongWritable value, int NumReduceTasks) 
+		    {
+		        String[] str = key.toString().split(",");
+		        
+		        if (str[0].contains("2011"))
+		            return 0;
+		        if (str[0].contains("2012"))
+		            return 1;
+		        if (str[0].contains("2013"))
+		            return 2;
+		        if (str[0].contains("2014"))
+		            return 3;
+		        if (str[0].contains("2015"))
+		            return 4;
+		        if (str[0].contains("2016"))
+		            return 5;
+		        else
+		            return 6;
+		    }
+		}
+		
+	  
+	  public static void main(String[] args) throws Exception 
+	  {
+		    Configuration conf = new Configuration();
+		    Job job = Job.getInstance(conf, "h1b2b");
+		    
+		    job.setJarByClass(h1b2b.class);
+		    job.setMapperClass(MapClass.class);
+		    job.setPartitionerClass(h1b2bpartitioner.class);
+		    job.setReducerClass(ReduceClass.class);
+		    
+		    job.setNumReduceTasks(7);
+		    
+		    job.setMapOutputKeyClass(Text.class);
+		    job.setMapOutputValueClass(LongWritable.class);
+		    
+		    job.setOutputKeyClass(NullWritable.class);
+		    job.setOutputValueClass(Text.class);
+		    
+		    FileInputFormat.addInputPath(job, new Path(args[0]));
+		    FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		    System.exit(job.waitForCompletion(true) ? 0 : 1);
+		  }
+
+
+}
+

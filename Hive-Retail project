@@ -1,0 +1,46 @@
+create table retail (trn_dt string, custid string, age string, zip string, category string, product string, qty int, cost bigint, sales bigint)
+row format delimited
+fields terminated by '\;'
+stored as textfile;
+
+
+load data local inpath '/home/hduser/Retail_Data/D02' into table retail;
+load data local inpath '/home/hduser/Retail_Data/D01' into table retail;
+load data local inpath '/home/hduser/Retail_Data/D12' into table retail;
+load data local inpath '/home/hduser/Retail_Data/D11' into table retail;
+
+1A) select custid, trn_dt, sales from retail where sales in (select max(sales) from retail);
+
+
+select a.custid, a.trn_dt, a.sales from retail a where month(a.trn_dt) = 2  and sales in (select max(b.sales) from retail b where month(b.trn_dt) = 2) ;
+
+select a.custid, a.trn_dt, a.sales from retail a where month(a.trn_dt) = 1  and sales in (select max(b.sales) from retail b where month(b.trn_dt) = 1) ;
+
+select a.custid, a.trn_dt, a.sales from retail a where month(a.trn_dt) = 12  and sales in (select max(b.sales) from retail b where month(b.trn_dt) = 12) ;
+
+select a.custid, a.trn_dt, a.sales from retail a where month(a.trn_dt) = 11  and sales in (select max(b.sales) from retail b where month(b.trn_dt) = 11) ;
+
+
+2A) select product, sum(sales-cost) from retail group by product limit 10;
+
+
+3A) select product, sum(sales-cost), round((sum(sales-cost)*100)/sum(cost),2) from retail group by product limit 10;
+
+
+B) select product, sum(sales) as total from retail group by product order by total desc limit 10;
+
+ 
+C1) select * from (select age, product, sum(sales-cost) as profit from retail group by age, product having trim(age)="A" and profit >0 order by age, profit desc limit 5) a 
+
+union
+
+select * from (select age, product, sum(sales-cost) as profit from retail group by age, product having trim(age)="B" and profit >0 order by age, profit desc limit 5) b 
+
+order by age, profit desc;
+
+
+
+
+
+
+
